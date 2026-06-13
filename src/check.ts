@@ -19,7 +19,7 @@ async function main(): Promise<void> {
   const settings = await readSettings();
   console.log("\nSettings:");
   console.log(`  max_items_per_push = ${settings.maxItemsPerPush}`);
-  console.log(`  lookback_hours     = ${settings.lookbackHours}`);
+  console.log(`  lookback_days      = ${settings.lookbackDays}`);
   console.log(`  min_likes          = ${settings.minLikes}`);
   console.log(`  summary_lang       = ${settings.summaryLang}`);
   console.log(`  line_target_id     = ${settings.lineTargetId || "(CHƯA điền!)"}`);

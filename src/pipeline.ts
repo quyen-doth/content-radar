@@ -18,7 +18,7 @@ export async function runPipeline(): Promise<void> {
     // 1. Read Config
     const settings = await readSettings();
     const topics = await readEnabledTopics();
-    logger.info(`Config: ${topics.length} tag bật, max=${settings.maxItemsPerPush}, lookback=${settings.lookbackHours}h, min_likes=${settings.minLikes}`);
+    logger.info(`Config: ${topics.length} tag bật, max=${settings.maxItemsPerPush}, lookback=${settings.lookbackDays} ngày (JST), min_likes=${settings.minLikes}`);
     if (topics.length === 0) {
       logger.warn("Không có tag nào đang bật. Kết thúc.");
       return;
@@ -27,7 +27,7 @@ export async function runPipeline(): Promise<void> {
     // 2. Collect
     const collector = new QiitaCollector({
       tags: topics.map((t) => t.tagJp),
-      lookbackHours: settings.lookbackHours,
+      lookbackDays: settings.lookbackDays,
       minLikes: settings.minLikes,
       token: process.env.QIITA_TOKEN,
     });

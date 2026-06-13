@@ -10,7 +10,7 @@ export interface Topic {
 export interface Settings {
   maxItemsPerPush: number;
   summaryLang: string; // 'vi'
-  lookbackHours: number;
+  lookbackDays: number;
   minLikes: number; // thay cho min_stocks (Qiita không trả stocks_count công khai)
   lineTargetId: string;
 }

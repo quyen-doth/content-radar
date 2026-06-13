@@ -5,10 +5,10 @@
 
 import type { Article, Collector } from "../types.ts";
 import { logger } from "../lib/logger.ts";
-import { cutoffFromHours, queryDateForCutoff } from "../lib/time.ts";
+import { cutoffFromDays, queryDateForCutoff } from "../lib/time.ts";
 
 const QIITA_API = "https://qiita.com/api/v2/items";
-const PER_PAGE = 20;
+const PER_PAGE = 100; // Qiita max; cửa sổ nhiều ngày dễ >20 bài/tag nên lấy rộng rồi lọc client-side
 
 interface QiitaItem {
   id: string;
@@ -22,7 +22,7 @@ interface QiitaItem {
 
 export interface QiitaCollectorOptions {
   tags: string[]; // danh sách tag_jp đang bật
-  lookbackHours: number;
+  lookbackDays: number; // cửa sổ theo lịch ngày, mốc 00:00 JST
   minLikes: number;
   token?: string; // tuỳ chọn: có token thì rate limit cao hơn (~1000/h)
 }
@@ -31,7 +31,7 @@ export class QiitaCollector implements Collector {
   constructor(private readonly opts: QiitaCollectorOptions) {}
 
   async fetch(): Promise<Article[]> {
-    const cutoff = cutoffFromHours(this.opts.lookbackHours);
+    const cutoff = cutoffFromDays(this.opts.lookbackDays);
     const sinceDate = queryDateForCutoff(cutoff);
     const byId = new Map<string, Article>(); // khử trùng theo id (bài có thể trúng nhiều tag)
 
@@ -40,7 +40,7 @@ export class QiitaCollector implements Collector {
         const items = await this.fetchTag(tag, sinceDate);
         let kept = 0;
         for (const item of items) {
-          // Lọc client-side: trong lookback_hours VÀ đủ likes.
+          // Lọc client-side: created_at >= cutoff (00:00 JST) VÀ đủ likes.
           if (new Date(item.created_at).getTime() < cutoff.getTime()) continue;
           if (item.likes_count < this.opts.minLikes) continue;
           if (!byId.has(item.id)) {

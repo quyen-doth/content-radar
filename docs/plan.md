@@ -18,8 +18,12 @@
 | Runtime | TypeScript + **Bun** | **Đổi sang Node + npm + `tsx`** | Máy đã có Node v24, chưa có Bun → bỏ bước cài Bun. Workload nhẹ (cron 1 lần/ngày, I/O) nên runtime không tạo khác biệt. CI dùng `actions/setup-node` + `npm ci`. |
 
 **Config mặc định (ghi vào tab `Settings` lúc seed):**
-`max_items_per_push=5`, `summary_lang=vi`, `lookback_hours=24`, `min_likes=3`, `line_target_id=<User ID của bạn>`.
+`max_items_per_push=5`, `summary_lang=vi`, `lookback_days=5`, `min_likes=3`, `line_target_id=<User ID của bạn>`.
 Lịch chạy: `cron: 0 23 * * *` (08:00 JST).
+
+> **Cửa sổ thời gian:** lọc theo **lịch ngày** chứ không theo giờ rolling. Cutoff = 00:00 **JST**
+> của (hôm nay − `lookback_days`); lấy mọi bài `created_at ≥ cutoff`. VD hôm nay 14/06, lookback_days=5
+> → lấy bài từ 00:00 JST 09/06 đến nay. Xem `src/lib/time.ts`.
 
 ---
 
@@ -69,7 +73,7 @@ interface Topic { topicId: string; tagJp: string; enabled: boolean; note?: strin
 interface Settings {
   maxItemsPerPush: number;
   summaryLang: string;     // 'vi'
-  lookbackHours: number;
+  lookbackDays: number;     // cửa sổ theo lịch ngày, mốc 00:00 JST
   minLikes: number;        // thay cho min_stocks
   lineTargetId: string;
 }
@@ -98,8 +102,8 @@ Tab `History` (cột giữ nguyên PRD §6, chỉ đổi `stocks` → `likes`):
 Chạy tuần tự, **fault-tolerant**: lỗi 1 tag/1 bài → log & bỏ qua, không sập cả run.
 
 1. **Read Config** — `sheets/config.ts` đọc `Topics` (lọc `enabled=TRUE`) + `Settings`.
-2. **Collect** — với mỗi tag, `QiitaCollector.fetch()`; lọc `created_at` trong `lookback_hours`
-   và `likes >= min_likes`; gộp tất cả tag rồi **khử trùng theo `id`**.
+2. **Collect** — với mỗi tag, `QiitaCollector.fetch()`; lọc `created_at ≥ cutoff` (00:00 JST của
+   hôm nay − `lookback_days`) và `likes ≥ min_likes`; gộp tất cả tag rồi **khử trùng theo `id`**.
 3. **Dedup vs History** — `history.ts` load set `article_id` đã gửi; bỏ bài đã có.
 4. **Summarize** — `gemini.ts` batch các bài còn lại → tiếng Việt 2–3 câu.
 5. **Notify** — `line.ts` gom tối đa `maxItemsPerPush` bài → 1 push.
@@ -118,11 +122,12 @@ Chạy tuần tự, **fault-tolerant**: lỗi 1 tag/1 bài → log & bỏ qua, k
 - Export `sheets` client + helper `getValues(range)` / `appendValues(range, rows)`.
 
 ### 4.2 `collectors/qiita.ts`
-- `GET https://qiita.com/api/v2/items?query=tag:{tag}+created:>={YYYY-MM-DD}&per_page=20&page=1`
-  - `{date}` = (now − lookback_hours), lấy granularity ngày cho query, rồi **lọc lại theo giờ** ở client.
+- `GET https://qiita.com/api/v2/items?query=tag:{tag}+created:>={YYYY-MM-DD}&per_page=100&page=1`
+  - `{date}` = JST date của (cutoff − 1 ngày) để chừa biên; cutoff = 00:00 JST của (hôm nay − `lookback_days`).
+  - `per_page=100` (Qiita max): cửa sổ nhiều ngày dễ >20 bài/tag nên lấy rộng rồi lọc client-side.
   - Header `Authorization: Bearer ${QIITA_TOKEN}` (nâng rate limit lên ~1000 req/h).
 - Map response → `Article` (`id, title, url, created_at, likes_count, body, tags`).
-- Lọc client-side: trong `lookback_hours` **và** `likes >= min_likes`.
+- Lọc client-side: `created_at ≥ cutoff` **và** `likes ≥ min_likes`.
 - Rate limit: đọc header `Rate-Remaining`; tag lỗi → log & tiếp tục tag khác.
 
 ### 4.3 `summarize/gemini.ts`
@@ -219,7 +224,7 @@ Chạy tuần tự, **fault-tolerant**: lỗi 1 tag/1 bài → log & bỏ qua, k
 | Rủi ro | Giảm thiểu |
 | ------ | ---------- |
 | Qiita không có `stocks_count` | Đã chuyển sang `likes_count` (đã chốt). |
-| `query=tag:` chỉ lọc ngày, không lọc giờ | Lọc lại `lookback_hours` ở client. |
+| `query=tag:` chỉ lọc ngày, không lọc giờ | Lọc lại theo instant cutoff (00:00 JST) ở client. |
 | Gemini trả JSON sai định dạng | `responseMimeType: application/json` + fallback per-bài + giữ link gốc. |
 | Body bài quá dài → tốn token | Cắt body ~2000 ký tự trước khi gửi Gemini. |
 | LINE vượt giới hạn ký tự/message | Tách thành ≤5 text trong 1 push. |

@@ -43,7 +43,7 @@ const SEED_TOPICS: string[][] = [
 const SEED_SETTINGS: string[][] = [
   ["max_items_per_push", "5"],
   ["summary_lang", "vi"],
-  ["lookback_hours", "24"],
+  ["lookback_days", "5"],
   ["min_likes", "3"],
   ["line_target_id", ""],
 ];

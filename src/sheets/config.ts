@@ -25,7 +25,7 @@ export async function readEnabledTopics(): Promise<Topic[]> {
 const DEFAULTS = {
   maxItemsPerPush: 5,
   summaryLang: "vi",
-  lookbackHours: 24,
+  lookbackDays: 5,
   minLikes: 3,
 } as const;
 
@@ -45,7 +45,7 @@ export async function readSettings(): Promise<Settings> {
   return {
     maxItemsPerPush: toInt(map.get("max_items_per_push"), DEFAULTS.maxItemsPerPush),
     summaryLang: map.get("summary_lang") || DEFAULTS.summaryLang,
-    lookbackHours: toInt(map.get("lookback_hours"), DEFAULTS.lookbackHours),
+    lookbackDays: toInt(map.get("lookback_days"), DEFAULTS.lookbackDays),
     minLikes: toInt(map.get("min_likes"), DEFAULTS.minLikes),
     lineTargetId: map.get("line_target_id") ?? "",
   };
