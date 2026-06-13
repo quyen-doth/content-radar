@@ -15,6 +15,7 @@
 | Khởi tạo Sheet | Không nói rõ | **Có hướng dẫn tạo thủ công + script `setup` tự bootstrap** tab/header + seed Topics/Settings | Người dùng chưa có sheet. |
 | Gọi Gemini | Mỗi bài 1 lần hoặc batch | **Batch**: gộp nhiều bài → 1 request, trả JSON `[{id, summary_vi}]` | Tiết kiệm quota, ít request. Có fallback per-bài khi parse lỗi. |
 | Test LINE | — | Có sẵn token + User ID → **kèm bước test push thật** + cờ `DRY_RUN` để test cục bộ không gửi | |
+| Runtime | TypeScript + **Bun** | **Đổi sang Node + npm + `tsx`** | Máy đã có Node v24, chưa có Bun → bỏ bước cài Bun. Workload nhẹ (cron 1 lần/ngày, I/O) nên runtime không tạo khác biệt. CI dùng `actions/setup-node` + `npm ci`. |
 
 **Config mặc định (ghi vào tab `Settings` lúc seed):**
 `max_items_per_push=5`, `summary_lang=vi`, `lookback_hours=24`, `min_likes=3`, `line_target_id=<User ID của bạn>`.
@@ -40,7 +41,7 @@ content-radar/
     ├── pipeline.ts           # orchestrate 6 bước, fault-tolerant
     ├── config.ts             # đọc & validate env (fail-fast nếu thiếu secret)
     ├── types.ts              # Article, Topic, Settings, Collector...
-    ├── setup.ts              # `bun run src/setup.ts` — bootstrap tab/header + seed
+    ├── setup.ts              # `npm run setup` — bootstrap tab/header + seed
     ├── sheets/
     │   ├── client.ts         # auth Service Account (JWT) + Sheets client
     │   ├── config.ts         # đọc tab Topics + Settings
@@ -165,7 +166,7 @@ Chạy tuần tự, **fault-tolerant**: lỗi 1 tag/1 bài → log & bỏ qua, k
     `googleapis`, `@google/generative-ai`.
   - **Hướng dẫn tạo Google Sheet** (mục 6 bên dưới) → có `SHEET_ID`.
   - `src/setup.ts`: tạo tab `Topics/Settings/History/Logs` nếu thiếu, ghi header, seed
-    Topics (bộ tag PRD §12) + Settings mặc định. Chạy `bun run src/setup.ts`.
+    Topics (bộ tag PRD §12) + Settings mặc định. Chạy `npm run setup`.
 - [ ] **Phase 1 — Sheets layer** (`client/config/history/logs`). Test: in ra Topics+Settings đọc được.
 - [ ] **Phase 2 — Qiita collector**. Test: fetch 1 tag, in số bài sau lọc.
 - [ ] **Phase 3 — Dedup**. Test: chạy 2 lần, lần 2 ra 0 bài mới.
@@ -184,7 +185,7 @@ Chạy tuần tự, **fault-tolerant**: lỗi 1 tag/1 bài → log & bỏ qua, k
 2. Google Cloud Console → tạo **Service Account** → tạo **key JSON** → nội dung JSON này là `GOOGLE_SA_JSON`.
    Bật **Google Sheets API** cho project.
 3. **Share spreadsheet** với email service account (dạng `...@...iam.gserviceaccount.com`), quyền **Editor**.
-4. Chạy `bun run src/setup.ts` để tự tạo 4 tab + header + seed dữ liệu mặc định.
+4. Chạy `npm run setup` để tự tạo 4 tab + header + seed dữ liệu mặc định.
 5. Mở Sheet, điền `line_target_id` (User ID của bạn) ở tab `Settings`, bật/tắt tag ở tab `Topics`.
 
 ---
@@ -228,6 +229,6 @@ Chạy tuần tự, **fault-tolerant**: lỗi 1 tag/1 bài → log & bỏ qua, k
 
 ## 10. Định nghĩa "hoàn thành" Phase 1
 
-- `bun run src/index.ts` (hoặc `workflow_dispatch`) lấy bài Qiita mới đúng tag enabled,
+- `npm start` (hoặc `workflow_dispatch`) lấy bài Qiita mới đúng tag enabled,
   không gửi trùng, tóm tắt tiếng Việt, **đẩy 1 push LINE** tới User ID, và **ghi History**.
 - Cron 08:00 JST chạy tự động; chạy lại thủ công nhiều lần không sinh thông báo trùng.

@@ -20,7 +20,10 @@ Phase 1 chỉ làm Qiita; GitHub (Phase 2) và note.com (Phase 3) thuộc roadma
 
 ## Tech stack (PRD §5)
 
-- **TypeScript + Bun** — chạy bằng `bun run src/index.ts`, cài deps bằng `bun install`.
+- **TypeScript + Node (npm + `tsx`)** — chạy TS trực tiếp không cần build. Lệnh: `npm install`,
+  `npm run setup` (bootstrap Sheet), `npm run check` (kiểm tra Sheets), `npm run dev` (DRY_RUN, không
+  gửi LINE/ghi History), `npm start` (chạy thật). *(PRD §5 đề xuất Bun nhưng đã đổi sang Node/npm —
+  máy đã có Node, bỏ được bước cài Bun; xem plan.md §0.)*
 - **GitHub Actions cron** — scheduler tại `.github/workflows/daily-digest.yml`, lịch `0 23 * * *`
   (08:00 JST). Luôn kèm `workflow_dispatch` để chạy tay khi test, không phải chờ cron.
 - Thư viện: `googleapis` (Sheets), `@google/generative-ai` (Gemini), `fetch` cho Qiita & LINE.
