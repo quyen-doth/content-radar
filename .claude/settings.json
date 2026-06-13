@@ -1,0 +1,37 @@
+{
+    "hooks": {
+        "Stop": [
+            {
+                "matcher": "",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "bash $HOME/.claude/scripts/notify.sh \"✅ Claude Code\" \"Task completed\""
+                    }
+                ]
+            }
+        ],
+        "Notification": [
+            {
+                "matcher": "permission_prompt",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "bash $HOME/.claude/scripts/notify.sh \"🔔 Claude Code\" \"Need approval\""
+                    }
+                ]
+            }
+        ],
+        "PreToolUse": [
+            {
+                "matcher": "Read|Edit|Write|Bash|Grep",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "node ~/.claude/hooks/block-env.mjs"
+                    }
+                ]
+            }
+        ]
+    }
+}
