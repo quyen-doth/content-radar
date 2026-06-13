@@ -31,8 +31,8 @@ Mỗi lần chạy là 1 lượt duy nhất, không có server thường trú. T
 
 1. **Read Config** — đọc tab `Topics` (tag đang bật) và `Settings` (key-value) từ Google Sheets.
 2. **Collect** — với mỗi tag enabled, gọi Qiita `GET /api/v2/items?query=tag:{tag}`; lọc
-   client-side theo `lookback_hours` và `min_stocks`; **khử trùng giữa các tag theo `id`**
-   (1 bài có thể trúng nhiều tag).
+   client-side theo `lookback_hours` và `min_likes` (xem ghi chú bên dưới); **khử trùng giữa
+   các tag theo `id`** (1 bài có thể trúng nhiều tag).
 3. **Dedup vs History** — load toàn bộ `article_id` từ tab `History`; bỏ bài đã từng gửi.
 4. **Summarize** — Gemini Flash, tiếng Việt, 2–3 câu. Chỉ tóm tắt bài đã qua dedup để tiết kiệm quota.
 5. **Notify** — gom tối đa `max_items_per_push` bài thành **1** push LINE (`POST /v2/bot/message/push`)
@@ -45,6 +45,10 @@ Một spreadsheet, nhiều tab (`Topics`, `Settings`, `History`, và `Logs` tu�
 sửa chủ đề/cài đặt trực tiếp trên Sheets — **không hardcode tag hay tham số trong code**;
 chúng được đọc từ `Topics`/`Settings` ở mỗi lần chạy. Script tự ghi `History` và `Logs`.
 Cấu trúc cột xem PRD §6.
+
+> **Lưu ý quan trọng:** PRD dùng `min_stocks` (số stock) để lọc chất lượng, nhưng Qiita API v2
+> **không trả `stocks_count` công khai**. Dự án dùng `likes_count` (LGTM) thay thế — config là
+> `min_likes`, cột History là `likes`. Xem `plan.md` §0.
 
 ### Ràng buộc thiết kế bắt buộc giữ
 

@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.local
+*.log
+bun.lockb
+.DS_Store
+# Service account key — KHÔNG bao giờ commit
+*service-account*.json
+sa-*.json

@@ -1,0 +1,22 @@
+{
+  "name": "content-radar",
+  "version": "1.0.0",
+  "description": "Theo dõi & tóm tắt nội dung Qiita → tiếng Việt → LINE (Phase 1)",
+  "type": "module",
+  "scripts": {
+    "setup": "tsx src/setup.ts",
+    "check": "tsx src/check.ts",
+    "start": "tsx src/index.ts",
+    "dev": "DRY_RUN=true tsx src/index.ts"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "dotenv": "^16.4.5",
+    "googleapis": "^144.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
