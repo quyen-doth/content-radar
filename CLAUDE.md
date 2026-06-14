@@ -4,18 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Trạng thái dự án
 
-Repo này **chưa có code** — hiện chỉ có `prd.md`. Toàn bộ kiến trúc mô tả bên dưới là
-phần cần xây dựng, chưa tồn tại. Hãy coi PRD là spec để triển khai, và cập nhật lại
-file này khi đã có source/scripts/tooling thật.
+Code đã triển khai xong Phase 1–7 (Qiita → tóm tắt VI → LINE). Xem `docs/plan.md` cho chi tiết.
 
-`prd.md` viết bằng tiếng Việt. Quy ước ngôn ngữ: PRD, config trong Sheets và phần tóm tắt
+`docs/prd.md` viết bằng tiếng Việt. Quy ước ngôn ngữ: PRD, config trong Sheets và phần tóm tắt
 gửi cho người dùng đều bằng **tiếng Việt**; còn tiêu đề và link bài viết giữ nguyên
 **tiếng Nhật**.
 
 ## Sản phẩm cần xây
 
 **Content Radar** — job chạy 1 lần/ngày: thu thập bài Qiita mới theo chủ đề, lọc trùng với
-lịch sử, tóm tắt từng bài sang tiếng Việt bằng Gemini, rồi đẩy 1 digest gộp qua LINE.
+lịch sử, tóm tắt từng bài sang tiếng Việt bằng Claude Haiku, rồi đẩy 1 digest gộp qua LINE.
 Phase 1 chỉ làm Qiita; GitHub (Phase 2) và note.com (Phase 3) thuộc roadmap.
 
 ## Tech stack (PRD §5)
@@ -26,7 +24,7 @@ Phase 1 chỉ làm Qiita; GitHub (Phase 2) và note.com (Phase 3) thuộc roadma
   máy đã có Node, bỏ được bước cài Bun; xem plan.md §0.)*
 - **GitHub Actions cron** — scheduler tại `.github/workflows/daily-digest.yml`, lịch `0 23 * * *`
   (08:00 JST). Luôn kèm `workflow_dispatch` để chạy tay khi test, không phải chờ cron.
-- Thư viện: `googleapis` (Sheets), `@google/generative-ai` (Gemini), `fetch` cho Qiita & LINE.
+- Thư viện: `googleapis` (Sheets), `@anthropic-ai/sdk` (Claude Haiku — agent + tool registry), `fetch` cho Qiita & LINE.
 
 ## Kiến trúc — pipeline tuần tự 6 bước
 
@@ -37,7 +35,7 @@ Mỗi lần chạy là 1 lượt duy nhất, không có server thường trú. T
    client-side theo `lookback_days` (cửa sổ theo lịch, mốc 00:00 JST) và `min_likes` (xem ghi
    chú bên dưới); **khử trùng giữa các tag theo `id`** (1 bài có thể trúng nhiều tag).
 3. **Dedup vs History** — load toàn bộ `article_id` từ tab `History`; bỏ bài đã từng gửi.
-4. **Summarize** — Gemini Flash, tiếng Việt, 2–3 câu. Chỉ tóm tắt bài đã qua dedup để tiết kiệm quota.
+4. **Summarize** — Claude Haiku (agent + tool `save_summaries`), tiếng Việt, 2–3 câu. Chỉ tóm tắt bài đã qua dedup để tiết kiệm quota.
 5. **Notify** — gom tối đa `max_items_per_push` bài thành **1** push LINE (`POST /v2/bot/message/push`)
    để tiết kiệm quota LINE.
 6. **Write History** — append từng bài đã gửi vào tab `History` với `status = sent`.
@@ -65,5 +63,5 @@ Cấu trúc cột xem PRD §6.
 ## Secrets / biến môi trường
 
 Cấp qua GitHub Actions secrets, đọc từ env lúc runtime:
-`QIITA_TOKEN`, `GEMINI_API_KEY`, `LINE_CHANNEL_ACCESS_TOKEN`, `GOOGLE_SA_JSON`, `SHEET_ID`.
+`QIITA_TOKEN`, `ANTHROPIC_API_KEY`, `LINE_CHANNEL_ACCESS_TOKEN`, `GOOGLE_SA_JSON`, `SHEET_ID`.
 Email của Google service account phải được share quyền Editor trên spreadsheet.

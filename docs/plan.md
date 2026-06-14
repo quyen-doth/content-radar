@@ -13,7 +13,7 @@
 | ---- | ------- | --------------------- | ----- |
 | Lọc chất lượng | `min_stocks` (≥ N stock) | **Đổi sang `min_likes`** (≥ N LGTM) | Qiita API v2 **không trả `stocks_count` công khai** (chỉ tác giả xem được). Trường `likes_count` luôn có sẵn, không tốn thêm request. |
 | Khởi tạo Sheet | Không nói rõ | **Có hướng dẫn tạo thủ công + script `setup` tự bootstrap** tab/header + seed Topics/Settings | Người dùng chưa có sheet. |
-| Gọi Gemini | Mỗi bài 1 lần hoặc batch | **Batch**: gộp nhiều bài → 1 request, trả JSON `[{id, summary_vi}]` | Tiết kiệm quota, ít request. Có fallback per-bài khi parse lỗi. |
+| Gọi AI tóm tắt | Mỗi bài 1 lần hoặc batch | **Claude Haiku** (`@anthropic-ai/sdk`) + agent loop mỏng + tool registry. Batch 1 request, Claude gọi tool `save_summaries` trả `[{id, summary_vi}]` | Thay Gemini bằng Claude Haiku. Kiến trúc agent+tool mở rộng được cho tác vụ AI khác. Có fallback per-bài. |
 | Test LINE | — | Có sẵn token + User ID → **kèm bước test push thật** + cờ `DRY_RUN` để test cục bộ không gửi | |
 | Runtime | TypeScript + **Bun** | **Đổi sang Node + npm + `tsx`** | Máy đã có Node v24, chưa có Bun → bỏ bước cài Bun. Workload nhẹ (cron 1 lần/ngày, I/O) nên runtime không tạo khác biệt. CI dùng `actions/setup-node` + `npm ci`. |
 
@@ -51,11 +51,15 @@ content-radar/
     │   ├── config.ts         # đọc tab Topics + Settings
     │   ├── history.ts        # đọc set article_id; append bài đã gửi
     │   └── logs.ts           # append dòng log (tuỳ chọn)
+    ├── ai/
+    │   ├── client.ts         # Anthropic client singleton
+    │   ├── tools.ts          # Tool registry: register, lookup, handle
+    │   └── agent.ts          # Agent loop mỏng: messages + tools → tool_use
     ├── collectors/
     │   ├── collector.ts      # interface Collector { fetch(): Promise<Article[]> }
     │   └── qiita.ts          # QiitaCollector
     ├── summarize/
-    │   └── gemini.ts         # summarizeBatch(articles) → Map<id, summary_vi>
+    │   └── claude.ts         # summarizeBatch via agent + tool save_summaries
     ├── notify/
     │   └── line.ts           # pushDigest(articles)
     └── lib/
@@ -130,13 +134,19 @@ Chạy tuần tự, **fault-tolerant**: lỗi 1 tag/1 bài → log & bỏ qua, k
 - Lọc client-side: `created_at ≥ cutoff` **và** `likes ≥ min_likes`.
 - Rate limit: đọc header `Rate-Remaining`; tag lỗi → log & tiếp tục tag khác.
 
-### 4.3 `summarize/gemini.ts`
-- SDK `@google/generative-ai`, model **`gemini-2.0-flash`** (Flash, free tier).
-- **Batch**: 1 prompt chứa danh sách `[{id, title, body(cắt ~2000 ký tự)}]`, yêu cầu trả
-  **JSON** `[{ "id": "...", "summary_vi": "..." }]` (đặt `responseMimeType: "application/json"`).
-- Prompt theo PRD §7.3: tóm tắt sang tiếng Việt 2–3 câu (nói về gì / dùng-đề xuất gì / ai nên đọc),
+### 4.3 `summarize/claude.ts` + `ai/` (agent + tool registry)
+- SDK `@anthropic-ai/sdk`, model **`claude-haiku-4-5`**.
+- **Kiến trúc agent + tool registry**:
+  - `ai/client.ts` — Anthropic client singleton.
+  - `ai/tools.ts` — Tool registry: `registerTool()`, `handleToolCall()`, `getToolDefinitions()`.
+  - `ai/agent.ts` — Agent loop mỏng: gửi messages + tools → xử lý `tool_use` blocks.
+  - `summarize/claude.ts` — Đăng ký tool `save_summaries`, gọi agent, nhận kết quả từ tool.
+- **Tool `save_summaries`**: Claude gọi tool này 1 lần để trả structured output `[{id, summary_vi}]`.
+  Agent tự làm việc tóm tắt; tool chỉ là cơ chế nhận kết quả (không gọi AI bên trong).
+- **Batch**: 1 prompt chứa danh sách `[{id, title, body(cắt ~2000 ký tự)}]`.
+- Prompt: tóm tắt sang tiếng Việt 2–3 câu (nói về gì / dùng-đề xuất gì / ai nên đọc),
   không lời mở đầu.
-- **Fallback**: nếu parse JSON lỗi hoặc thiếu id → tóm tắt lại từng bài đó riêng lẻ; nếu vẫn lỗi
+- **Fallback**: nếu batch lỗi → tóm tắt lại từng bài riêng lẻ; nếu vẫn lỗi
   → `summary_vi = "(không tóm tắt được — xem link gốc)"`, log lỗi, vẫn gửi bài.
 
 ### 4.4 `notify/line.ts`
@@ -200,7 +210,7 @@ Chạy tuần tự, **fault-tolerant**: lỗi 1 tag/1 bài → log & bỏ qua, k
 | Biến | Dùng cho |
 | ---- | -------- |
 | `QIITA_TOKEN` | Qiita API (Bearer) |
-| `GEMINI_API_KEY` | Gemini Flash |
+| `ANTHROPIC_API_KEY` | Claude Haiku (tóm tắt) |
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE push |
 | `GOOGLE_SA_JSON` | Auth Sheets (chuỗi JSON service account) |
 | `SHEET_ID` | ID spreadsheet |
@@ -225,8 +235,8 @@ Chạy tuần tự, **fault-tolerant**: lỗi 1 tag/1 bài → log & bỏ qua, k
 | ------ | ---------- |
 | Qiita không có `stocks_count` | Đã chuyển sang `likes_count` (đã chốt). |
 | `query=tag:` chỉ lọc ngày, không lọc giờ | Lọc lại theo instant cutoff (00:00 JST) ở client. |
-| Gemini trả JSON sai định dạng | `responseMimeType: application/json` + fallback per-bài + giữ link gốc. |
-| Body bài quá dài → tốn token | Cắt body ~2000 ký tự trước khi gửi Gemini. |
+| Claude không gọi tool | Fallback per-bài + placeholder + giữ link gốc. |
+| Body bài quá dài → tốn token | Cắt body ~2000 ký tự trước khi gửi Claude. |
 | LINE vượt giới hạn ký tự/message | Tách thành ≤5 text trong 1 push. |
 | History lớn dần làm chậm | Chấp nhận ở Phase 1; Phase 3 tách sang DB (roadmap). |
 

@@ -4,7 +4,7 @@ import { isDryRun } from "./config.ts";
 import { logger } from "./lib/logger.ts";
 import { QiitaCollector } from "./collectors/qiita.ts";
 import { filterNew } from "./dedup.ts";
-import { summarizeBatch } from "./summarize/gemini.ts";
+import { summarizeBatch } from "./summarize/claude.ts";
 import { buildDigestMessages, pushDigest } from "./notify/line.ts";
 import { readEnabledTopics, readSettings } from "./sheets/config.ts";
 import { appendSent, loadSentIds } from "./sheets/history.ts";
